@@ -10,7 +10,7 @@ PageTable::PageTable(int virtual_frames, int physical_frames){
     this->virtual_frames = virtual_frames;
     this->physical_frames = physical_frames;
     for(int i = 0; i < virtual_frames; i++){
-        page_table[i].modify(0,0,0,i,0);
+        page_table[i].modify(0,0,0,i,0,i);
     }
 }
 
@@ -19,6 +19,15 @@ PageTable::PageTable(){}
 PageTableEntry PageTable::get(int page_index){
     return page_table[page_index];
 }
+
+PageTableEntry PageTable::setUsingPTE(PageTableEntry pte){
+    for(int i = 0; i < virtual_frames; i++){
+        if(strcmp(page_table[i].toString(),pte.toString()) == 0){
+            page_table[i] = pte;
+        }
+    }
+}
+
 void PageTable::set(int page_index, PageTableEntry page_table_entry){
     page_table[page_index] = page_table_entry;
 }
@@ -31,7 +40,7 @@ void PageTable::createPageTable(int virtual_frames,int physical_frames){
     this->virtual_frames = virtual_frames;
     this->physical_frames = physical_frames;
     for(int i = 0; i < virtual_frames; i++){
-        page_table[i].modify(0,0,0,i,0);
+        page_table[i].modify(0,0,0,i,0,i);
     }
 }
 

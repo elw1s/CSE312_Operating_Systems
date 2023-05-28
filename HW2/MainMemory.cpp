@@ -36,7 +36,7 @@ void MainMemory::createMainMemory(int frame_size, int physical_frames, char * di
     }    
 }
 
-PageTableEntry MainMemory::applyPageReplacementAlgorithm(PageTableEntry pte,int page_index){
+PageTableEntry MainMemory::applyPageReplacementAlgorithm(int page_index){
     if(strcmp(this->algorithm, "LRU") == 0){
         return applyLRU(page_index);
     }
@@ -56,7 +56,7 @@ PageTableEntry MainMemory::applyPageReplacementAlgorithm(PageTableEntry pte,int 
 PageTableEntry MainMemory::applyLRU(int page_index){
     PageTableEntry removedPTE = list.removeRear();
     if(removedPTE.getModified() == 1){
-        removedPTE.modify(0,0,0,-1,0);
+        removedPTE.modify(0,0,0,removedPTE.getPageFrameNumber(),0,removedPTE.getSpecialPageIndex());
         writeToTheDisk(removedPTE, page_index);
     }
     removePageFramesFromMemory(removedPTE);
@@ -68,11 +68,10 @@ PageTableEntry MainMemory::applySC(int page_index){
     if(list.getFirstLoadedPage().getReferenced() == 0){
         PageTableEntry removedPTE = list.remove();
         if(removedPTE.getModified() == 1){
-            removedPTE.modify(0,0,0,-1,0);
+            removedPTE.modify(0,0,0,removedPTE.getPageFrameNumber(),0,removedPTE.getSpecialPageIndex());
             writeToTheDisk(removedPTE, page_index);
         }
         removePageFramesFromMemory(removedPTE);
-
     }
 
     /* If the first loaded page's R bit is 1, then firstly remove and add it again it. If every page's R bit is 1, then remove the first one. */
@@ -86,7 +85,7 @@ PageTableEntry MainMemory::applySC(int page_index){
         if(firstEntry.getPageFrameNumber() == list.getFirstLoadedPage().getPageFrameNumber()){
             PageTableEntry removedPTE = list.remove();
             if(removedPTE.getModified() == 1){
-                removedPTE.modify(0,0,0,-1,0);
+                removedPTE.modify(0,0,0,-1,0,removedPTE.getSpecialPageIndex());
                 writeToTheDisk(removedPTE, page_index);
             }
             removePageFramesFromMemory(removedPTE);
@@ -97,10 +96,11 @@ PageTableEntry MainMemory::applySC(int page_index){
 
     PageTableEntry removedPTE = list.remove();
     if(removedPTE.getModified() == 1){
-        removedPTE.modify(0,0,0,-1,0);
+        removedPTE.modify(0,0,0,-1,0,removedPTE.getSpecialPageIndex());
         writeToTheDisk(removedPTE, page_index);
     }
     removePageFramesFromMemory(removedPTE);
+    removedPTE.modify(0,0,0,-1,0,removedPTE.getSpecialPageIndex());
     return removedPTE;
     
 }
@@ -154,9 +154,10 @@ int MainMemory::getFromDisk(PageTableEntry pte){
     if (inputFile.is_open()){
         std::string line;
         while (std::getline(inputFile, line)){
-            line.erase(line.length() - 1);
+            if(line[line.size() - 1] == '\n'){
+                line.erase(line.length() - 1);
+            }
             if(line == pte.toString()){
-                cout << line << " = " << pte.toString() << endl;
                 int count = 0;
                 index = getEmptySpaceStartingIndex();
                 while(std::getline(inputFile, line)){
@@ -174,29 +175,38 @@ int MainMemory::getFromDisk(PageTableEntry pte){
     return index / this->frame_size;
 }
 
-PageTableEntry MainMemory::addPageIntoMainMemory(PageTableEntry pte, int page_index){
-    PageTableEntry newly_added_page;
-    int page_frame_number;
+/* Removes a Page from Main Memory, returns the removed page table entry */
+PageTableEntry MainMemory::createEmptySpace(int page_index){
+    if(!hasEmptySpace()){
+        applyPageReplacementAlgorithm(page_index);
+    }
+}
+/* Adds page into Main Memory, returns the new added Page Table Entry */
+PageTableEntry MainMemory::addPageIntoMainMemory(PageTableEntry pte){
+    PageTableEntry newly_added_page = pte;
+    int page_frame_number = getFromDisk(pte);
+    newly_added_page.modify(1,0,1,page_frame_number,0,newly_added_page.getSpecialPageIndex());
     if(hasEmptySpace()){
-        cout << "There are Empty Space...\n";
         if(strcmp(this->algorithm, "LRU") == 0){
-            list.removeAndAddAgain(pte);
+            list.removeAndAddAgain(newly_added_page);
         }
         else{
-            list.add(pte);
+            list.add(newly_added_page);
         }
     }
-    else{
-        cout << "There are no empty space...\n";
-        applyPageReplacementAlgorithm(pte, page_index);
-    }
-    newly_added_page = pte;
-    page_frame_number = getFromDisk(pte);
-    newly_added_page.modify(0,0,1,page_frame_number,0);
     return newly_added_page;
 }
 
 int MainMemory::hasEmptySpace(){
     return list.size() != this->physical_frames;
+}
+
+PageTableEntry MainMemory::modifyPageInMainMemory(PageTableEntry pte){
+    if(strcmp(this->algorithm, "LRU") == 0){
+        list.removeAndAddAgain(pte);
+    }
+    else{
+        list.replaceWithNewPTE(pte);
+    }
 }
 

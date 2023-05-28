@@ -49,9 +49,6 @@ void VirtualMemory::writeToTheDisk(PageTableEntry pte, int page_index){
     }
 }
 
-int VirtualMemory::isPagePresentInMainMemory(PageTableEntry* page_table,int page_index){
-    return page_table[page_index].getPresent();
-}
 
 int VirtualMemory::getIndexForPageTable(int address){
     return (address - 1) / virtual_frames; //Finds the page index in page table of the given address which is in VM.
@@ -62,7 +59,7 @@ int VirtualMemory::get(int address){
 }
 
 void VirtualMemory::set(int address, int value){
-
+    virtual_memory[address] = value;
 }
 
 

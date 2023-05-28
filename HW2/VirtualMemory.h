@@ -22,7 +22,6 @@ public:
     VirtualMemory(int frame_size, int virtual_frames, char * disk_file_path);
     ~VirtualMemory(); //Destructor
     void createVirtualMemory(int frame_size, int virtual_frames, char * disk_file_path);
-    int isPagePresentInMainMemory(PageTableEntry* page_table,int page_index);
     int get(int address);
     void set(int address, int value);
     int getIndexForPageTable(int address);

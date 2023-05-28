@@ -140,4 +140,16 @@ public:
             tail = previous;
         }
     }
+
+    void replaceWithNewPTE(PageTableEntry entry) {
+        Node* current = head;
+        while (current != nullptr) {
+            if (current->data.getSpecialPageIndex() == entry.getSpecialPageIndex()) {
+                current->data = entry;
+                return;
+            }
+            current = current->next;
+        }
+    }
+
 };

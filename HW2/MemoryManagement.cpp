@@ -13,8 +13,44 @@ int convertVirtualMemoryIndexToPageTableIndex(int virtual_memory_index){
     return virtual_memory_index / frame_size;
 }
 
+/* index = Virtual Memory Index for an "int" */
+int getValueFromVirtualMemory(int index){
+    if(pt.isPagePresentInMainMemory(convertVirtualMemoryIndexToPageTableIndex(index))){
+        //cout << index << " Page is in Main Memory!\n";
+    }
+    else{
+        //cout << index << " Page is not in Main Memory!\n";
+        //cout <<  index << " Old PFN: " << pt.get(convertVirtualMemoryIndexToPageTableIndex(index)).getPageFrameNumber() << endl;
+        PageTableEntry removedPage = mm.createEmptySpace(convertVirtualMemoryIndexToPageTableIndex(index));
+        PageTableEntry newly_loaded_page = mm.addPageIntoMainMemory(pt.get(convertVirtualMemoryIndexToPageTableIndex(index)));
+        pt.set(convertVirtualMemoryIndexToPageTableIndex(index),newly_loaded_page);
+        pt.setUsingPTE(removedPage);
+        //cout << index << " New PFN: " << pt.get(convertVirtualMemoryIndexToPageTableIndex(index)).getPageFrameNumber() << endl;
+    }
+    return vm.get(index);
+}
+
+void setValueInVirtualMemory(int index, int val){
+    if(pt.isPagePresentInMainMemory(convertVirtualMemoryIndexToPageTableIndex(index))){
+        //cout << index << " Page is in Main Memory!\n";
+    }
+    else{
+        PageTableEntry removedPage = mm.createEmptySpace(convertVirtualMemoryIndexToPageTableIndex(index));
+        PageTableEntry newly_loaded_page = mm.addPageIntoMainMemory(pt.get(convertVirtualMemoryIndexToPageTableIndex(index)));
+        pt.set(convertVirtualMemoryIndexToPageTableIndex(index),newly_loaded_page);
+        pt.setUsingPTE(removedPage);
+        vm.set(index,val);
+        PageTableEntry modifiedPTE = pt.get(convertVirtualMemoryIndexToPageTableIndex(index));
+        modifiedPTE.setModified(1);
+        modifiedPTE.setReferenced(1);
+        modifiedPTE.setPresent(1);
+        pt.setUsingPTE(modifiedPTE);
+        mm.modifyPageInMainMemory(modifiedPTE);
+    }
+}
+
 void run_threads(){
-    for(int index = 32 * frame_size - 1; index >= 0; index-=frame_size){
+    /* for(int index = 32 * frame_size - 1; index >= 0; index-=frame_size){
         if(pt.isPagePresentInMainMemory(convertVirtualMemoryIndexToPageTableIndex(index))){
             cout << index << " Page is in Main Memory!\n";
         }
@@ -26,17 +62,17 @@ void run_threads(){
             cout << index << " New PFN: " << pt.get(convertVirtualMemoryIndexToPageTableIndex(index)).getPageFrameNumber() << endl;
         }
     }
-    int index = 8562;
+    int index = 131073;
     if(pt.isPagePresentInMainMemory(convertVirtualMemoryIndexToPageTableIndex(index))){
             cout << index << " Page is in Main Memory!\n";
-        }
-        else{
-            cout << index << " Page is not in Main Memory!\n";
-            cout <<  index << " Old PFN: " << pt.get(convertVirtualMemoryIndexToPageTableIndex(index)).getPageFrameNumber() << endl;
-            PageTableEntry newly_loaded_page = mm.addPageIntoMainMemory(pt.get(convertVirtualMemoryIndexToPageTableIndex(index)),convertVirtualMemoryIndexToPageTableIndex(index));
-            pt.set(convertVirtualMemoryIndexToPageTableIndex(index),newly_loaded_page);
-            cout << index << " New PFN: " << pt.get(convertVirtualMemoryIndexToPageTableIndex(index)).getPageFrameNumber() << endl;
-        }
+    }
+    else{
+        cout << index << " Page is not in Main Memory!\n";
+        cout <<  index << " Old PFN: " << pt.get(convertVirtualMemoryIndexToPageTableIndex(index)).getPageFrameNumber() << endl;
+        PageTableEntry newly_loaded_page = mm.addPageIntoMainMemory(pt.get(convertVirtualMemoryIndexToPageTableIndex(index)),convertVirtualMemoryIndexToPageTableIndex(index));
+        pt.set(convertVirtualMemoryIndexToPageTableIndex(index),newly_loaded_page);
+        cout << index << " New PFN: " << pt.get(convertVirtualMemoryIndexToPageTableIndex(index)).getPageFrameNumber() << endl;
+    } */
 }
 
 void init(){
