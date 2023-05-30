@@ -1,6 +1,5 @@
 #include "MainMemory.h"
 
-
 MainMemory::MainMemory(){
 
 }
@@ -23,6 +22,11 @@ MainMemory::~MainMemory(){
 
 }
 
+void MainMemory::set(int address, int value){
+    this->physical_memory[address] = value;
+}
+
+
 void MainMemory::createMainMemory(int frame_size, int physical_frames, char * disk_file_path, char *algorithm){
     physical_memory = (int *)malloc(physical_frames * frame_size * sizeof(int));
     this->frame_size = frame_size;
@@ -36,12 +40,12 @@ void MainMemory::createMainMemory(int frame_size, int physical_frames, char * di
     }    
 }
 
-PageTableEntry MainMemory::applyPageReplacementAlgorithm(int page_index){
+PageTableEntry MainMemory::applyPageReplacementAlgorithm(int page_index,int * number_of_disk_page_writes){
     if(strcmp(this->algorithm, "LRU") == 0){
-        return applyLRU(page_index);
+        return applyLRU(page_index,number_of_disk_page_writes);
     }
     else if(strcmp(this->algorithm, "SC") == 0){
-        return applySC(page_index);
+        return applySC(page_index,number_of_disk_page_writes);
     }
     else{
         //(strcmp(this->algorithm, "WSClock") == 0){
@@ -53,54 +57,30 @@ PageTableEntry MainMemory::applyPageReplacementAlgorithm(int page_index){
 /* Remove the latest page in the linked list
    If a page table entry is modified, then call removeAndAddAgain()
  */
-PageTableEntry MainMemory::applyLRU(int page_index){
+PageTableEntry MainMemory::applyLRU(int page_index,int * number_of_disk_page_writes){
     PageTableEntry removedPTE = list.removeRear();
     if(removedPTE.getModified() == 1){
         removedPTE.modify(0,0,0,removedPTE.getPageFrameNumber(),0,removedPTE.getSpecialPageIndex());
-        writeToTheDisk(removedPTE, page_index);
+        writeToTheDisk(removedPTE, page_index,number_of_disk_page_writes);
     }
     removePageFramesFromMemory(removedPTE);
 }
 
-PageTableEntry MainMemory::applySC(int page_index){
-
-    /* If the first loaded page's R bit is 0 */
-    if(list.getFirstLoadedPage().getReferenced() == 0){
-        PageTableEntry removedPTE = list.remove();
-        if(removedPTE.getModified() == 1){
-            removedPTE.modify(0,0,0,removedPTE.getPageFrameNumber(),0,removedPTE.getSpecialPageIndex());
-            writeToTheDisk(removedPTE, page_index);
-        }
-        removePageFramesFromMemory(removedPTE);
-    }
-
-    /* If the first loaded page's R bit is 1, then firstly remove and add it again it. If every page's R bit is 1, then remove the first one. */
-    PageTableEntry firstEntry = list.getFirstLoadedPage();
-
-    if(list.getFirstLoadedPage().getReferenced() == 1){
-        list.add(list.remove());
-    }
+PageTableEntry MainMemory::applySC(int page_index,int * number_of_disk_page_writes){
 
     while(list.getFirstLoadedPage().getReferenced() == 1){
-        if(firstEntry.getPageFrameNumber() == list.getFirstLoadedPage().getPageFrameNumber()){
-            PageTableEntry removedPTE = list.remove();
-            if(removedPTE.getModified() == 1){
-                removedPTE.modify(0,0,0,-1,0,removedPTE.getSpecialPageIndex());
-                writeToTheDisk(removedPTE, page_index);
-            }
-            removePageFramesFromMemory(removedPTE);
-            return removedPTE;
-        }
-        list.add(list.remove());
+        PageTableEntry firstEntryInList = list.remove();
+        firstEntryInList.setReferenced(0);
+        list.add(firstEntryInList);
     }
 
     PageTableEntry removedPTE = list.remove();
     if(removedPTE.getModified() == 1){
-        removedPTE.modify(0,0,0,-1,0,removedPTE.getSpecialPageIndex());
-        writeToTheDisk(removedPTE, page_index);
+        removedPTE.modify(0,0,0,removedPTE.getPageFrameNumber(),0,removedPTE.getSpecialPageIndex());
+        writeToTheDisk(removedPTE, removedPTE.getSpecialPageIndex(),number_of_disk_page_writes);
     }
+    removedPTE.modify(0,0,0,removedPTE.getPageFrameNumber(),0,removedPTE.getSpecialPageIndex());
     removePageFramesFromMemory(removedPTE);
-    removedPTE.modify(0,0,0,-1,0,removedPTE.getSpecialPageIndex());
     return removedPTE;
     
 }
@@ -120,15 +100,15 @@ int MainMemory::getEmptySpaceStartingIndex(){
         }
     }
 }
-
-void MainMemory::writeToTheDisk(PageTableEntry pte, int page_index){
+/* Buraya silmesi gereken page'i degil, onun yerine getireceği page'in indexini gönderiyor!!!! düzelt */
+void MainMemory::writeToTheDisk(PageTableEntry pte, int page_index, int * number_of_disk_page_writes){
     std::ifstream inputFile(this->disk_file_path);
     std::ofstream outputFile("tmp.dat");  
     if (inputFile.is_open() && outputFile.is_open()){
         std::string line;
         int countLine = 0;
-        int firstIndexOfIntValueInDisk = page_index * this->frame_size + 1; // Size of int x page_index will give the first index of the "int" in the given page.
-        int firstIndexOfPageTableEntryInDisk = page_index * this->frame_size + 1;
+        int firstIndexOfIntValueInDisk = page_index * (this->frame_size + 1) + 1; // Size of int x page_index will give the first index of the "int" in the given page.
+        int firstIndexOfPageTableEntryInDisk = page_index * (this->frame_size + 1); 
         while(std::getline(inputFile, line)){
             if(firstIndexOfIntValueInDisk + this->frame_size > countLine && countLine >= firstIndexOfIntValueInDisk){
                 outputFile << this->physical_memory[countLine] << endl;
@@ -138,17 +118,22 @@ void MainMemory::writeToTheDisk(PageTableEntry pte, int page_index){
             }
             else{
                 outputFile << line;
+                if(line.back() != '\n') outputFile << endl;
             }
             countLine++;
         }
-        outputFile.close(); 
+        (*number_of_disk_page_writes)++;
+        inputFile.close();
+        outputFile.close();
+        remove(this->disk_file_path);
+        rename("tmp.dat",this->disk_file_path); 
     } else {
         cout << "Error at opening the disk file.\n";
     }
 }
 
 /* Gets the given page table entry from disk and puts into the main memory. Returns the page frame number where the page is put. */
-int MainMemory::getFromDisk(PageTableEntry pte){
+int MainMemory::getFromDisk(PageTableEntry pte, int * number_of_disk_page_reads){
     int index;
     std::ifstream inputFile(this->disk_file_path);
     if (inputFile.is_open()){
@@ -172,19 +157,20 @@ int MainMemory::getFromDisk(PageTableEntry pte){
         }
         inputFile.close();
     }
+    (*number_of_disk_page_reads)++;
     return index / this->frame_size;
 }
 
 /* Removes a Page from Main Memory, returns the removed page table entry */
-PageTableEntry MainMemory::createEmptySpace(int page_index){
+PageTableEntry MainMemory::createEmptySpace(int page_index,int * number_of_disk_page_writes){
     if(!hasEmptySpace()){
-        applyPageReplacementAlgorithm(page_index);
+        return applyPageReplacementAlgorithm(page_index,number_of_disk_page_writes);
     }
 }
 /* Adds page into Main Memory, returns the new added Page Table Entry */
-PageTableEntry MainMemory::addPageIntoMainMemory(PageTableEntry pte){
+PageTableEntry MainMemory::addPageIntoMainMemory(PageTableEntry pte, int * number_of_disk_page_reads){
     PageTableEntry newly_added_page = pte;
-    int page_frame_number = getFromDisk(pte);
+    int page_frame_number = getFromDisk(pte,number_of_disk_page_reads);
     newly_added_page.modify(1,0,1,page_frame_number,0,newly_added_page.getSpecialPageIndex());
     if(hasEmptySpace()){
         if(strcmp(this->algorithm, "LRU") == 0){

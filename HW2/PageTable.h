@@ -29,7 +29,7 @@ public:
         this->present = present;
         this->page_frame_number = page_frame_number;
         this->time_of_the_last_use = time_of_the_last_use;
-        int specialPageIndex = specialPageIndex;
+        this->specialPageIndex = specialPageIndex;
     }
     // Getter methods
     int getReferenced() {

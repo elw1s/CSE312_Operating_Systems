@@ -30,10 +30,11 @@ void VirtualMemory::createVirtualMemory(int frame_size, int virtual_frames, char
 void VirtualMemory::fillWithRandomValues(){
     std::random_device rd;
     std::mt19937 gen(rd());
-    for (int i = 0; i < virtual_frames * frame_size; i++){
-        this->virtual_memory[i] = gen();
-    }
-}
+    std::uniform_int_distribution<int> dist(0, 100); // Set the range from 0 to 100
+
+    for (int i = 0; i < virtual_frames * frame_size; i++) {
+        this->virtual_memory[i] = dist(gen);
+    }}
 /* At first run, the disk will have the Virtual Memory values in it. Therefore, they are copied into it by considering the page table entry. */
 void VirtualMemory::writeToTheDisk(PageTableEntry pte, int page_index){
     std::ofstream outputFile(this->disk_file_path,std::ios::app); 

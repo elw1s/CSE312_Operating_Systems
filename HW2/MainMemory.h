@@ -12,7 +12,6 @@
 
 using namespace std;
 
-
 class MainMemory{
 
 private:
@@ -29,18 +28,18 @@ public:
     void createMainMemory(int frame_size, int physical_frames, char * disk_file_path, char *algorithm);
     int get(int address);
     void set(int address, int value);
-    PageTableEntry applyPageReplacementAlgorithm(int page_index);
-    PageTableEntry applyLRU(int page_index);
-    PageTableEntry applySC(int page_index);
+    PageTableEntry applyPageReplacementAlgorithm(int page_index,int * number_of_disk_page_writes);
+    PageTableEntry applyLRU(int page_index,int * number_of_disk_page_writes);
+    PageTableEntry applySC(int page_index,int * number_of_disk_page_writes);
     //PageTableEntry applyWSClock(int page_index);
-    PageTableEntry addPageIntoMainMemory(PageTableEntry pte);
+    PageTableEntry addPageIntoMainMemory(PageTableEntry pte,int * number_of_disk_page_reads);
     int hasEmptySpace();
-    int getFromDisk(PageTableEntry pte);
-    void writeToTheDisk(PageTableEntry pte, int page_index);
+    int getFromDisk(PageTableEntry pte,int * number_of_disk_page_reads);
+    void writeToTheDisk(PageTableEntry pte, int page_index,int * number_of_disk_page_writes);
     int getEmptySpaceStartingIndex();
     void removePageFramesFromMemory(PageTableEntry pte);
     PageTableEntry modifyPageInMainMemory(PageTableEntry pte);
-    PageTableEntry createEmptySpace(int page_index);
+    PageTableEntry createEmptySpace(int page_index,int * number_of_disk_page_writes);
 };
 
 

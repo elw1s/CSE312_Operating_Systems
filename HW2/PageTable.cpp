@@ -22,7 +22,7 @@ PageTableEntry PageTable::get(int page_index){
 
 PageTableEntry PageTable::setUsingPTE(PageTableEntry pte){
     for(int i = 0; i < virtual_frames; i++){
-        if(strcmp(page_table[i].toString(),pte.toString()) == 0){
+        if(page_table[i].getSpecialPageIndex() == pte.getSpecialPageIndex()){
             page_table[i] = pte;
         }
     }
